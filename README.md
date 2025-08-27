@@ -81,6 +81,16 @@ Or use `docker-compose` which includes a healthcheck and log rotation options:
 docker-compose up --build
 ```
 
+## Run in production or long-running mode
+
+Use a restart policy so the container restarts after host reboots or failures:
+
+```powershell
+docker run --restart unless-stopped --memory=512m --cpus=1 -p 8000:8000 hl-model-api:latest
+```
+
+When using `docker-compose`, the provided `docker-compose.yml` sets `restart: unless-stopped` for the service.
+
 Publish to GitHub Container Registry (GHCR)
 ----------------------------------------
 

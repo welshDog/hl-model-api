@@ -19,6 +19,12 @@ COPY --from=build /install /usr/local
 # Copy application
 COPY . /app
 
+# Ensure files are owned by a non-root user at runtime
+RUN set -eux; \
+	groupadd -r appuser 2>/dev/null || true; \
+	useradd -r -g appuser appuser 2>/dev/null || true; \
+	chown -R appuser:appuser /app
+
 EXPOSE 8000
 
 LABEL org.opencontainers.image.title="hl-model-api" \
@@ -30,3 +36,4 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
 	CMD python -c "import urllib.request as u,sys;\ntry:\n r=u.urlopen('http://127.0.0.1:8000/health', timeout=5);\n sys.exit(0 if r.getcode()==200 else 1)\nexcept Exception:\n sys.exit(1)"
 
 CMD ["uvicorn", "serve:app", "--host", "0.0.0.0", "--port", "8000"]
+USER appuser
