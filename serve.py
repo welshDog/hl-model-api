@@ -1,9 +1,17 @@
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from typing import List, Union
-import joblib
+import joblib  # type: ignore
 import numpy as np
 import logging
+from pydantic import BaseModel
+
+# text prediction imports will be optional at runtime
+try:
+    from typing import Optional
+    import sklearn
+except Exception:
+    pass
 
 app = FastAPI()
 
@@ -24,6 +32,28 @@ except Exception as e:
 class PredictRequest(BaseModel):
     # Accept a single feature vector or a list of feature vectors
     inputs: Union[List[float], List[List[float]]]
+
+
+class TextPredictRequest(BaseModel):
+    texts: Union[str, List[str]]
+
+
+def _load_text_model():
+    try:
+        data = joblib.load("models/text_model.joblib")
+        return data
+    except Exception:
+        return None
+
+
+text_model_data = _load_text_model()
+text_vectorizer = None
+text_clf = None
+text_labels = None
+if text_model_data:
+    text_vectorizer = text_model_data.get("vectorizer")
+    text_clf = text_model_data.get("classifier")
+    text_labels = text_model_data.get("labels")
 
 
 @app.get("/")
@@ -60,4 +90,24 @@ def predict(req: PredictRequest):
         raise HTTPException(status_code=500, detail="Prediction failed")
 
     labels = [target_names[int(p)] if target_names is not None else int(p) for p in preds]
+    return {"predictions": labels}
+
+
+@app.post("/predict_text")
+def predict_text(req: TextPredictRequest):
+    if text_clf is None or text_vectorizer is None:
+        raise HTTPException(status_code=503, detail="Text model not loaded")
+
+    texts = req.texts
+    if isinstance(texts, str):
+        texts = [texts]
+
+    try:
+        X = text_vectorizer.transform(texts)
+        preds = text_clf.predict(X)
+    except Exception as e:
+        logger.exception("Text prediction failed: %s", e)
+        raise HTTPException(status_code=500, detail="Text prediction failed")
+
+    labels = [text_labels[int(p)] if text_labels is not None else int(p) for p in preds]
     return {"predictions": labels}
