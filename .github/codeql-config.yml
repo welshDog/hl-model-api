@@ -1,0 +1,35 @@
+name: "CodeQL Configuration"
+
+disable-default-queries: false
+
+queries:
+  - uses: security-and-quality
+  - uses: security-experimental
+
+paths-ignore:
+  - .venv
+  - __pycache__
+  - .git
+  - "**/*.pyc"
+  - "**/*.pyo"
+  - "**/test_*.py"
+  - "**/*_test.py"
+  - "**/tests/"
+  - "*.log"
+  - "logs/"
+  - ".vscode/"
+  - ".github/"
+  - "dist/"
+  - "build/"
+  - "**/*.egg-info/"
+  - "node_modules"
+  - ".pytest_cache/"
+  - "htmlcov/"
+  - "coverage.xml"
+  - "**/.coverage"
+  - "**/migrations/"
+  - "**/alembic/"
+
+paths:
+  - "**/*.py"
+  - "**/*.ipynb"

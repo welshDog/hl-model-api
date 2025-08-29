@@ -1,0 +1,174 @@
+name: "Comprehensive Security Scan"
+
+on:
+  push:
+    branches: [ "main", "master" ]
+  pull_request:
+    branches: [ "main", "master" ]
+  schedule:
+    - cron: '0 6 * * 1'  # Weekly on Mondays at 6 AM UTC
+
+jobs:
+  codeql-analysis:
+    name: CodeQL Security Analysis
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v4
+
+    - name: Setup Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.12'
+
+    - name: Install Dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+
+    - name: Initialize CodeQL
+      uses: github/codeql-action/init@v3
+      with:
+        languages: python
+        config-file: ./.github/codeql-config.yml
+        queries: security-and-quality
+
+    - name: Perform CodeQL Analysis
+      uses: github/codeql-action/analyze@v3
+      with:
+        category: "/language:python"
+
+    - name: Security Scan Complete
+      run: |
+        echo "SECURITY ANALYSIS COMPLETE"
+        echo "CodeQL security scanning finished!"
+        echo "Python API repository protected with automated security analysis!"
+
+  dependency-check:
+    name: Python Dependency Vulnerability Check
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Setup Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.12'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+
+    - name: Install security tools
+      run: |
+        pip install safety bandit[sarif]
+
+    - name: Run Safety (vulnerability check)
+      run: |
+        echo "🔍 Checking for Python dependency vulnerabilities..."
+        safety check --full-report || true
+
+    - name: Run Bandit (security linting)
+      run: |
+        echo "🛡️ Running Bandit security analysis..."
+        bandit -r . -f json -o bandit-report.json || true
+      continue-on-error: true
+
+    - name: Upload Bandit report
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: bandit-security-report
+        path: bandit-report.json
+      continue-on-error: true
+
+  secret-scan:
+    name: Secret Scanning
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Scan for secrets
+      uses: gitleaks/gitleaks-action@v2
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  license-check:
+    name: License Compliance
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Setup Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.12'
+
+    - name: Install license checker
+      run: pip install pip-licenses
+
+    - name: Check licenses
+      run: |
+        echo "📋 Checking Python package licenses..."
+        pip-licenses --format=json > license-report.json
+        echo "License report generated"
+      continue-on-error: true
+
+    - name: Upload license report
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: python-license-report
+        path: license-report.json
+      continue-on-error: true
+
+  api-security-test:
+    name: API Security Testing
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Setup Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.12'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+
+    - name: Install security testing tools
+      run: pip install requests
+
+    - name: Check for common security issues
+      run: |
+        echo "🔍 Checking for common Python API security issues..."
+
+        # Check for hardcoded secrets in Python files
+        if grep -r "password\|secret\|key\|token" --include="*.py" . | grep -v "import\|from\|#\|test\|example"; then
+          echo "⚠️  Potential hardcoded secrets found!"
+          exit 1
+        else
+          echo "✅ No hardcoded secrets detected"
+        fi
+
+        # Check for debug mode in production
+        if grep -r "DEBUG.*=.*True" --include="*.py" .; then
+          echo "⚠️  Debug mode enabled in production code!"
+          exit 1
+        else
+          echo "✅ Debug mode properly disabled"
+        fi
